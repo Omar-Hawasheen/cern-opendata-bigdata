@@ -32,11 +32,12 @@ import uproot
 from kinematics import RESONANCES, invariant_mass_ptetaphi
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data/raw/Run2012BC_DoubleMuParked_Muons.root"
+RAW = Path(os.environ.get("DIMUON_ROOT", ROOT / "data/raw/Run2012BC_DoubleMuParked_Muons.root"))
 OUT = ROOT / "data/processed/dimuons"
-FIG, RES = ROOT / "figures", ROOT / "results"
+FIG = Path(os.environ.get("PIPELINE_FIG", ROOT / "figures"))
+RES = Path(os.environ.get("PIPELINE_RES", ROOT / "results"))
+CHUNK = int(os.environ.get("PIPELINE_CHUNK", 2_000_000))  # events per task
 BRANCHES = ["nMuon", "Muon_pt", "Muon_eta", "Muon_phi", "Muon_mass", "Muon_charge"]
-CHUNK = 2_000_000  # events per task
 HIST_BINS = np.logspace(np.log10(0.25), np.log10(300), 1200)
 
 
@@ -120,7 +121,8 @@ def run_analytics():
     counts = {k: ((ddf.mass > lo) & (ddf.mass < hi)).sum() for k, (lo, hi) in windows.items()}
     mean_pt_z = ddf[(ddf.mass > 81) & (ddf.mass < 101)][["pt1", "pt2"]].mean()
 
-    hist, n_cands, counts, mean_pt_z = dask.compute(total, n_cands, counts, mean_pt_z)
+    (hist,) = dask.compute(total)                      # delayed graph
+    n_cands, counts, mean_pt_z = dask.compute(n_cands, counts, mean_pt_z)  # dataframe graph
     secs = time.perf_counter() - t0
     return hist, int(n_cands), {k: int(v) for k, v in counts.items()}, mean_pt_z, secs
 

@@ -10,3 +10,4 @@ uproot
 awkward
 psutil
 requests
+pyspark==3.5.3   # needs Java 8/11/17

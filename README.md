@@ -59,6 +59,29 @@ _Results are filled in once the full pipeline has run; see [`results/bigdata_pip
 * **Columnar and vectorised:** no Python loop over events. Selection and kinematics are array operations.
 * **Re-usable output:** later analyses read the small Parquet dataset instead of the raw ROOT file.
 
+### Part 2b: the same analysis in Apache Spark SQL
+
+Spark can't read CERN's ROOT format natively. The Parquet output of the ETL stage is the bridge
+into the standard big data ecosystem. [`src/04_spark_sql.py`](src/04_spark_sql.py) registers the
+dataset as a SQL table and runs the whole analysis as plain SQL. The same queries run unchanged on
+a multi-node cluster, Databricks, or CERN's SWAN service.
+
+```sql
+-- Detector physics in SQL: is the Z peak narrower when both muons hit the central barrel?
+WITH z AS (
+  SELECT mass,
+         CASE WHEN ABS(eta1) < 1.2 AND ABS(eta2) < 1.2  THEN 'barrel-barrel'
+              WHEN ABS(eta1) >= 1.2 AND ABS(eta2) >= 1.2 THEN 'endcap-endcap'
+              ELSE 'barrel-endcap' END AS region
+  FROM dimuons WHERE mass BETWEEN 86 AND 96)
+SELECT region, COUNT(*) AS candidates, AVG(mass) AS mean_mass, STDDEV(mass) AS stddev_mass
+FROM z GROUP BY region ORDER BY stddev_mass;
+```
+
+Other queries: a log-binned invariant-mass histogram computed with `GROUP BY` (so only about 600
+rows ever leave Spark), candidate counts per resonance window, and the highest-mass events.
+Results are in [`results/spark_sql.json`](results/spark_sql.json).
+
 ## Part 3: Finding the Higgs boson with machine learning
 
 The [ATLAS Higgs ML Challenge](https://opendata.cern.ch/record/328) asked how well ML can separate
@@ -100,6 +123,7 @@ python src/00_download_data.py --all     # ~2.3 GB (drop --all to skip Part 2's 
 cd src
 python 01_dimuon_2011.py
 python 02_bigdata_pipeline.py
+python 04_spark_sql.py           # needs Java 17
 python 03_higgs_ml.py
 ```
 
