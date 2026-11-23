@@ -83,10 +83,30 @@ QUERIES = {
         GROUP BY region
         ORDER BY stddev_mass""",
 
-    "highest_mass_events": """
+    # Data validation: in 2012 each LHC beam carried 4 TeV, and the CMS muon
+    # system covers |eta| < 2.4. Anything beyond is a mis-reconstructed track.
+    "data_quality": """
+        SELECT COUNT(*) AS candidates,
+               SUM(CASE WHEN GREATEST(pt1, pt2) > 4000 THEN 1 ELSE 0 END)
+                   AS pt_above_beam_energy,
+               SUM(CASE WHEN GREATEST(ABS(eta1), ABS(eta2)) > 2.4 THEN 1 ELSE 0 END)
+                   AS outside_muon_acceptance,
+               SUM(CASE WHEN mass > 4000 THEN 1 ELSE 0 END)
+                   AS mass_above_beam_energy
+        FROM dimuons""",
+
+    "raw_highest_mass_events": """
         SELECT ROUND(mass, 1) AS mass, ROUND(pt1, 1) AS pt1, ROUND(pt2, 1) AS pt2,
                ROUND(eta1, 2) AS eta1, ROUND(eta2, 2) AS eta2
         FROM dimuons
+        ORDER BY mass DESC
+        LIMIT 3""",
+
+    "highest_mass_events_after_quality_cuts": """
+        SELECT ROUND(mass, 1) AS mass, ROUND(pt1, 1) AS pt1, ROUND(pt2, 1) AS pt2,
+               ROUND(eta1, 2) AS eta1, ROUND(eta2, 2) AS eta2
+        FROM dimuons
+        WHERE ABS(eta1) < 2.4 AND ABS(eta2) < 2.4 AND pt1 < 4000 AND pt2 < 4000
         ORDER BY mass DESC
         LIMIT 5""",
 }
@@ -141,8 +161,8 @@ def main():
     n_cand = results["overview"][0]["candidates"]
     ax.set_title(f"Histogram computed by Spark SQL ({n_cand / 1e6:.1f}M dimuon candidates)")
     ytop = ax.get_ylim()[1]
-    for name, m in RESONANCES.items():
-        ax.text(m, ytop * 0.35, name, ha="center", fontsize=12,
+    for i, (name, m) in enumerate(RESONANCES.items()):
+        ax.text(m, ytop * (0.35 if i % 2 == 0 else 0.12), name, ha="center", fontsize=12,
                 bbox=dict(fc="white", ec="none", alpha=0.8))
     ax.grid(alpha=0.2, which="both")
     fig.tight_layout()

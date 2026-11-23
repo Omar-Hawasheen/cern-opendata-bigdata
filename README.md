@@ -6,7 +6,7 @@ It has three parts, from simple physics to big data and machine learning:
 | Part | Dataset | What it does | Headline result |
 |---|---|---|---|
 | **1. Particle rediscovery** | CMS 2011 DoubleMu, 100k events | Computes the dimuon invariant mass from raw four-momenta and fits the peaks | Z boson at **90.77 ± 0.04 GeV**, J/ψ at **3.0931 GeV** |
-| **2. Big data pipeline** | CMS 2012 DoubleMuParked, **61.5M events / 2.2 GB** | Parallel out-of-core ETL (uproot + awkward → Parquet) and Dask map-reduce analytics | _see below_ |
+| **2. Big data pipeline** | CMS 2012 DoubleMuParked, **61.5M events / 2.2 GB** | Parallel out-of-core ETL (uproot + awkward → Parquet), then Dask **and Spark SQL** analytics | **61.5M events in 20 s** (3.1M events/s, 8 workers, <820 MB per worker) |
 | **3. Higgs ML** | ATLAS Higgs ML Challenge 2014, 818k events | XGBoost H→ττ signal vs background classifier, scored with the official Kaggle protocol | **AMS 3.69** on the private test set (2014 winner: 3.806) |
 
 ---
@@ -35,13 +35,36 @@ exactly what a real analysis would add next.
 
 ## Part 2: A parallel pipeline over 61.5 million collisions
 
-_Results are filled in once the full pipeline has run; see [`results/bigdata_pipeline.json`](results/bigdata_pipeline.json)._
+This is the classic CMS dimuon spectrum, rebuilt from **61.5 million real 2012 collisions** on a laptop:
+
+![61.5M-event spectrum](figures/dimuon_spectrum_2012_61M.png)
+
+With 24M dimuon candidates, the statistics are high enough to separate the three Υ states,
+bound states of a bottom quark and its antiquark, only ~0.3–0.6 GeV apart:
+
+| Υ(1S), Υ(2S), Υ(3S) resolved | Selection cut-flow |
+|---|---|
+| ![upsilon](figures/upsilon_region_2012.png) | ![cutflow](figures/pipeline_cutflow.png) |
+
+**Performance** (8-worker process pool, laptop, see [`results/bigdata_pipeline.json`](results/bigdata_pipeline.json))
+
+| Metric | Value |
+|---|---|
+| Input | 2.24 GB ROOT, 61,540,413 events, jagged muon arrays |
+| ETL wall time | **19.6 s**, about **3.1 million events / s** |
+| Peak memory per worker | 814 MB (bounded by the 1M-event chunk size, not the dataset size) |
+| Output | 24.1M dimuon candidates in 0.85 GB zstd Parquet (2.6× smaller) |
+| Dask analytics (histogram + window counts + aggregates) | **1.6 s** over 24M rows |
+| Candidates in the J/ψ / Υ / Z windows | 2.26M / 0.64M / 4.85M |
+
+The broad bump at 20–40 GeV isn't a particle. It comes from the trigger: the "parked" dimuon
+trigger only kept events whose muons passed momentum thresholds, which sculpts the spectrum there.
 
 **Design**
 
 ```
  2.2 GB ROOT file (jagged arrays, 61.5M events)
-        │  split into 2M-event chunks
+        │  split into 1M-event chunks
         ▼
  ┌──────────── process pool (map) ────────────┐
  │ uproot read → awkward selection:           │
@@ -78,9 +101,32 @@ SELECT region, COUNT(*) AS candidates, AVG(mass) AS mean_mass, STDDEV(mass) AS s
 FROM z GROUP BY region ORDER BY stddev_mass;
 ```
 
-Other queries: a log-binned invariant-mass histogram computed with `GROUP BY` (so only about 600
-rows ever leave Spark), candidate counts per resonance window, and the highest-mass events.
-Results are in [`results/spark_sql.json`](results/spark_sql.json).
+| Region (both muons) | Z candidates | Spread of Z peak |
+|---|---|---|
+| barrel-barrel | 1,419,072 | **2.07 GeV** |
+| barrel-endcap | 1,960,932 | 2.18 GeV |
+| endcap-endcap | 751,339 | 2.32 GeV |
+
+The SQL confirms a real detector effect: muons in the central barrel are measured more precisely,
+so the Z peak is about 11% narrower than for muons in the forward endcaps.
+
+| Histogram computed inside Spark (`GROUP BY` bin, only ~600 rows leave Spark) | Resolution by detector region |
+|---|---|
+| ![spark spectrum](figures/spark_dimuon_spectrum.png) | ![spark region](figures/spark_z_resolution_by_region.png) |
+
+**Data validation found broken records.** Sorting by mass showed "dimuons" heavier than 100 TeV,
+with muon momenta far above the 4 TeV beam energy and η = 11.5, which is outside the detector.
+A data-quality query counts them across all 24M candidates:
+
+| Check | Records |
+|---|---|
+| muon p<sub>T</sub> > 4 TeV (beam energy) | 977 |
+| muon \|η\| > 2.4 (outside muon-system acceptance) | 169,839 |
+
+These are mis-reconstructed tracks. This reduced dataset doesn't include the muon-ID and
+track-quality variables a full CMS analysis would cut on, so the kinematic cuts are a first
+line of defense. All seven queries run in about 40 s on a laptop
+([`results/spark_sql.json`](results/spark_sql.json)).
 
 ## Part 3: Finding the Higgs boson with machine learning
 

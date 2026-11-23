@@ -1,0 +1,140 @@
+{
+  "spark_version": "3.5.3",
+  "master": "local[*]",
+  "default_parallelism": 16,
+  "query_seconds": {
+    "overview": 4.63,
+    "histogram": 3.79,
+    "resonance_windows": 1.8,
+    "z_resolution_by_detector_region": 4.08,
+    "data_quality": 1.23,
+    "raw_highest_mass_events": 9.3,
+    "highest_mass_events_after_quality_cuts": 7.49
+  },
+  "total_seconds": 41.01,
+  "overview": [
+    {
+      "candidates": 24067843,
+      "min_mass": 0.0,
+      "max_mass": 132642.0,
+      "avg_scalar_pt_sum": 43.66
+    }
+  ],
+  "resonance_windows": [
+    {
+      "resonance": "1 rho/omega",
+      "candidates": 198611
+    },
+    {
+      "resonance": "2 phi",
+      "candidates": 183897
+    },
+    {
+      "resonance": "3 J/psi",
+      "candidates": 2259130
+    },
+    {
+      "resonance": "4 psi(2S)",
+      "candidates": 163108
+    },
+    {
+      "resonance": "5 Upsilon(1S,2S,3S)",
+      "candidates": 641731
+    },
+    {
+      "resonance": "6 Z boson",
+      "candidates": 4853286
+    }
+  ],
+  "z_resolution_by_detector_region": [
+    {
+      "region": "barrel-barrel",
+      "candidates": 1419072,
+      "mean_mass": 90.835,
+      "stddev_mass": 2.072,
+      "median_mass": 90.85600280761719
+    },
+    {
+      "region": "barrel-endcap",
+      "candidates": 1960932,
+      "mean_mass": 90.796,
+      "stddev_mass": 2.179,
+      "median_mass": 90.79199981689453
+    },
+    {
+      "region": "endcap-endcap",
+      "candidates": 751339,
+      "mean_mass": 90.768,
+      "stddev_mass": 2.318,
+      "median_mass": 90.73600006103516
+    }
+  ],
+  "data_quality": [
+    {
+      "candidates": 24067843,
+      "pt_above_beam_energy": 977,
+      "outside_muon_acceptance": 169839,
+      "mass_above_beam_energy": 61
+    }
+  ],
+  "raw_highest_mass_events": [
+    {
+      "mass": 132642.0,
+      "pt1": 111593.6015625,
+      "pt2": 38333.0,
+      "eta1": 0.36000001430511475,
+      "eta2": 0.699999988079071
+    },
+    {
+      "mass": 54339.6015625,
+      "pt1": 3.200000047683716,
+      "pt2": 480492.0,
+      "eta1": -2.1700000762939453,
+      "eta2": 5.289999961853027
+    },
+    {
+      "mass": 43154.0,
+      "pt1": 159.89999389648438,
+      "pt2": 330.8999938964844,
+      "eta1": 11.479999542236328,
+      "eta2": 1.0099999904632568
+    }
+  ],
+  "highest_mass_events_after_quality_cuts": [
+    {
+      "mass": 5809.2001953125,
+      "pt1": 2961.300048828125,
+      "pt2": 2134.699951171875,
+      "eta1": -0.6800000071525574,
+      "eta2": 0.4300000071525574
+    },
+    {
+      "mass": 5755.2001953125,
+      "pt1": 1982.5,
+      "pt2": 3938.699951171875,
+      "eta1": 0.23999999463558197,
+      "eta2": -0.23999999463558197
+    },
+    {
+      "mass": 5308.60009765625,
+      "pt1": 1926.5999755859375,
+      "pt2": 2242.0,
+      "eta1": 0.6700000166893005,
+      "eta2": -0.7900000214576721
+    },
+    {
+      "mass": 4925.89990234375,
+      "pt1": 859.7000122070312,
+      "pt2": 3803.800048828125,
+      "eta1": -1.690000057220459,
+      "eta2": 0.18000000715255737
+    },
+    {
+      "mass": 4522.39990234375,
+      "pt1": 1680.5999755859375,
+      "pt2": 2752.60009765625,
+      "eta1": -0.36000001430511475,
+      "eta2": 0.2800000011920929
+    }
+  ]
+}

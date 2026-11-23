@@ -36,7 +36,7 @@ RAW = Path(os.environ.get("DIMUON_ROOT", ROOT / "data/raw/Run2012BC_DoubleMuPark
 OUT = ROOT / "data/processed/dimuons"
 FIG = Path(os.environ.get("PIPELINE_FIG", ROOT / "figures"))
 RES = Path(os.environ.get("PIPELINE_RES", ROOT / "results"))
-CHUNK = int(os.environ.get("PIPELINE_CHUNK", 2_000_000))  # events per task
+CHUNK = int(os.environ.get("PIPELINE_CHUNK", 1_000_000))  # events per task
 BRANCHES = ["nMuon", "Muon_pt", "Muon_eta", "Muon_phi", "Muon_mass", "Muon_charge"]
 HIST_BINS = np.logspace(np.log10(0.25), np.log10(300), 1200)
 
@@ -140,8 +140,8 @@ def plot_spectrum(hist, n_events, path):
     ax.set_title(f"CMS 2012 open data: {n_events / 1e6:.1f}M collisions, "
                  "opposite-charge dimuon spectrum")
     ytop = ax.get_ylim()[1]
-    for name, m in RESONANCES.items():
-        ax.text(m, ytop * 0.35, name, ha="center", fontsize=12,
+    for i, (name, m) in enumerate(RESONANCES.items()):
+        ax.text(m, ytop * (0.35 if i % 2 == 0 else 0.12), name, ha="center", fontsize=12,
                 bbox=dict(fc="white", ec="none", alpha=0.8))
     ax.grid(alpha=0.2, which="both")
     fig.tight_layout()
