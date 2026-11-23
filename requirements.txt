@@ -1,0 +1,12 @@
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+xgboost
+pyarrow
+dask[dataframe]
+uproot
+awkward
+psutil
+requests

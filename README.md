@@ -1,0 +1,118 @@
+# Rediscovering the Standard Model with CERN Open Data
+
+A data science project on **real CMS and ATLAS data** from [CERN Open Data](https://opendata.cern.ch).
+It has three parts, from simple physics to big data and machine learning:
+
+| Part | Dataset | What it does | Headline result |
+|---|---|---|---|
+| **1. Particle rediscovery** | CMS 2011 DoubleMu, 100k events | Computes the dimuon invariant mass from raw four-momenta and fits the peaks | Z boson at **90.77 ± 0.04 GeV**, J/ψ at **3.0931 GeV** |
+| **2. Big data pipeline** | CMS 2012 DoubleMuParked, **61.5M events / 2.2 GB** | Parallel out-of-core ETL (uproot + awkward → Parquet) and Dask map-reduce analytics | _see below_ |
+| **3. Higgs ML** | ATLAS Higgs ML Challenge 2014, 818k events | XGBoost H→ττ signal vs background classifier, scored with the official Kaggle protocol | **AMS 3.69** on the private test set (2014 winner: 3.806) |
+
+---
+
+## Part 1: Rediscovering particles in 100k CMS collisions
+
+When a particle decays into two muons (μ⁺μ⁻), the **invariant mass** of the pair equals the mass
+of the parent particle:
+
+$$M^2 = (E_1 + E_2)^2 - \lVert \vec p_1 + \vec p_2 \rVert^2$$
+
+Computing it for every event and plotting a histogram makes the known particles appear as peaks.
+
+![2011 spectrum](figures/dimuon_spectrum_2011.png)
+
+The mass I compute matches the value CMS stored in the file (median difference 8×10⁻⁵ GeV,
+which is rounding in the CSV). I then fit two of the peaks:
+
+| Z boson: Voigt fit (Breit-Wigner ⊗ Gaussian resolution) | J/ψ meson: Gaussian fit |
+|---|---|
+| ![Z fit](figures/z_peak_fit.png) | ![Jpsi fit](figures/jpsi_peak_fit.png) |
+
+The fitted Z mass (90.77 GeV) is about 0.45% below the PDG value (91.19 GeV). That's expected:
+this simplified dataset has no muon momentum-scale calibration applied, and that calibration is
+exactly what a real analysis would add next.
+
+## Part 2: A parallel pipeline over 61.5 million collisions
+
+_Results are filled in once the full pipeline has run; see [`results/bigdata_pipeline.json`](results/bigdata_pipeline.json)._
+
+**Design**
+
+```
+ 2.2 GB ROOT file (jagged arrays, 61.5M events)
+        │  split into 2M-event chunks
+        ▼
+ ┌──────────── process pool (map) ────────────┐
+ │ uproot read → awkward selection:           │
+ │   exactly 2 muons, opposite charge         │
+ │ → vectorised invariant mass                │
+ │ → zstd-compressed Parquet part file        │
+ └────────────────────────────────────────────┘
+        │  columnar, analysis-ready dataset
+        ▼
+ Dask: per-partition histograms (map) → sum (reduce),
+       mass-window counts, aggregates — computed in one pass
+```
+
+* **Out-of-core:** no process ever holds the full dataset. Memory use is bounded by the chunk size.
+* **Columnar and vectorised:** no Python loop over events. Selection and kinematics are array operations.
+* **Re-usable output:** later analyses read the small Parquet dataset instead of the raw ROOT file.
+
+## Part 3: Finding the Higgs boson with machine learning
+
+The [ATLAS Higgs ML Challenge](https://opendata.cern.ch/record/328) asked how well ML can separate
+**H → ττ** signal events from background (Z → ττ, top-pair, W). The metric is the
+**Approximate Median Significance (AMS)**, a proxy for discovery significance in σ.
+
+I followed the original challenge protocol so the score is directly comparable to the 2014 leaderboard:
+train on the 250k training set, choose the selection threshold on a validation split only, and
+score once on the 450k-event private test set.
+
+| Model | Private AMS | AUC |
+|---|---|---|
+| Logistic regression (baseline) | 2.16 | 0.895 |
+| 2014 official TMVA BDT benchmark | 3.20 | – |
+| **XGBoost + angular features (this project)** | **3.69** | **0.936** |
+| 2014 winner (ensemble of 70 neural networks) | 3.806 | – |
+
+Feature engineering: the raw φ angles are replaced by rotation-invariant Δφ between the τ, lepton,
+jet and missing energy, because physics is symmetric under rotation around the beam axis.
+
+| Classifier output | Choosing the threshold |
+|---|---|
+| ![score](figures/higgs_score.png) | ![ams](figures/higgs_ams_threshold.png) |
+
+| ROC | Most important features |
+|---|---|
+| ![roc](figures/higgs_roc.png) | ![importance](figures/higgs_feature_importance.png) |
+
+The model's top features are the reconstructed masses (`DER_mass_MMC`, `DER_mass_transverse_met_lep`,
+`DER_mass_vis`). It learned the same thing physicists use by hand: a Higgs decay leaves a mass peak.
+
+---
+
+## Reproduce
+
+```bash
+pip install -r requirements.txt
+python src/00_download_data.py --all     # ~2.3 GB (drop --all to skip Part 2's file)
+cd src
+python 01_dimuon_2011.py
+python 02_bigdata_pipeline.py
+python 03_higgs_ml.py
+```
+
+Figures go to `figures/` and numeric results go to `results/*.json`.
+
+## Next steps
+
+* **Scale out:** run the same map-reduce on a Dask or Spark cluster, or on CERN's SWAN service, over the full multi-TB NanoAOD datasets.
+* **Calibration:** apply a muon momentum-scale correction and measure the Z mass to better than 0.1%.
+* **Quantum ML:** compare a variational quantum classifier (Qiskit / PennyLane) with XGBoost on a reduced Higgs feature set. This connects to the CERN [Open Quantum Institute](https://open-quantum-institute.cern).
+
+## Data and credits
+
+* CMS Collaboration, *Dimuon datasets derived from Run2011A*, [CERN Open Data record 545](https://opendata.cern.ch/record/545)
+* CMS Collaboration, *DoubleMuParked 2012 NanoAOD reduced on muons*, [record 12341](https://opendata.cern.ch/record/12341)
+* ATLAS Collaboration, *Higgs Boson Machine Learning Challenge 2014*, [record 328](https://opendata.cern.ch/record/328)

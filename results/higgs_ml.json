@@ -1,0 +1,31 @@
+{
+  "features": 29,
+  "best_iteration": 741,
+  "selected_fraction": 0.164,
+  "public": {
+    "n_events": 100000,
+    "xgboost_AMS": 3.6685,
+    "xgboost_AUC": 0.9349,
+    "logreg_AMS": 2.1565,
+    "logreg_AUC": 0.8926
+  },
+  "private": {
+    "n_events": 450000,
+    "xgboost_AMS": 3.6929,
+    "xgboost_AUC": 0.9358,
+    "logreg_AMS": 2.1572,
+    "logreg_AUC": 0.8945
+  },
+  "reference_2014_leaderboard_private_AMS": {
+    "1st place (G. Melis)": 3.806,
+    "simple TMVA BDT benchmark": 3.2,
+    "'simple window' benchmark": 2.06
+  },
+  "top_features": [
+    "DER_mass_transverse_met_lep",
+    "DER_mass_MMC",
+    "DER_mass_vis",
+    "PRI_tau_pt",
+    "DPHI_tau_lep"
+  ]
+}
