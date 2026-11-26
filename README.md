@@ -188,12 +188,6 @@ python 03_higgs_ml.py
 
 Figures go to `figures/` and numeric results go to `results/*.json`.
 
-## Next steps
-
-* **Scale out:** run the same map-reduce on a Dask or Spark cluster, or on CERN's SWAN service, over the full multi-TB NanoAOD datasets.
-* **Calibration:** apply a muon momentum-scale correction and measure the Z mass to better than 0.1%.
-* **Quantum ML:** compare a variational quantum classifier (Qiskit / PennyLane) with XGBoost on a reduced Higgs feature set. This connects to the CERN [Open Quantum Institute](https://open-quantum-institute.cern).
-
 ## Data and credits
 
 * CMS Collaboration, *Dimuon datasets derived from Run2011A*, [CERN Open Data record 545](https://opendata.cern.ch/record/545)
