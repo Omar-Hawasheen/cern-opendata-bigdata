@@ -83,16 +83,23 @@ QUERIES = {
         GROUP BY region
         ORDER BY stddev_mass""",
 
-    # Data validation: in 2012 each LHC beam carried 4 TeV, and the CMS muon
-    # system covers |eta| < 2.4. Anything beyond is a mis-reconstructed track.
+    # Data validation. In 2012 each LHC beam carried 4 TeV (collision energy
+    # 8 TeV), so no muon can have pT > 4 TeV and no pair can exceed 8 TeV.
+    # The CMS muon chambers cover |eta| < 2.4 and the tracker |eta| < 2.5;
+    # |eta| > 3 is far outside both, i.e. certainly a broken reconstruction.
     "data_quality": """
         SELECT COUNT(*) AS candidates,
+               SUM(CASE WHEN GREATEST(ABS(eta1), ABS(eta2)) > 2.4 THEN 1 ELSE 0 END)
+                   AS eta_beyond_muon_chambers_2p4,
+               SUM(CASE WHEN GREATEST(ABS(eta1), ABS(eta2)) > 3.0 THEN 1 ELSE 0 END)
+                   AS eta_impossible_above_3,
                SUM(CASE WHEN GREATEST(pt1, pt2) > 4000 THEN 1 ELSE 0 END)
                    AS pt_above_beam_energy,
-               SUM(CASE WHEN GREATEST(ABS(eta1), ABS(eta2)) > 2.4 THEN 1 ELSE 0 END)
-                   AS outside_muon_acceptance,
-               SUM(CASE WHEN mass > 4000 THEN 1 ELSE 0 END)
-                   AS mass_above_beam_energy
+               SUM(CASE WHEN mass > 8000 THEN 1 ELSE 0 END)
+                   AS mass_above_collision_energy,
+               SUM(CASE WHEN GREATEST(pt1, pt2) > 4000
+                          OR GREATEST(ABS(eta1), ABS(eta2)) > 3.0 THEN 1 ELSE 0 END)
+                   AS clearly_unphysical_total
         FROM dimuons""",
 
     "raw_highest_mass_events": """

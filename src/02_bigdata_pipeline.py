@@ -54,16 +54,20 @@ def process_chunk(task):
     os_ = two[two.Muon_charge[:, 0] != two.Muon_charge[:, 1]]  # opposite charge
     n_os = len(os_)
 
-    mu = {k: ak.to_numpy(os_[f"Muon_{k}"]).astype(np.float32)  # (n, 2) regular now
+    # (n, 2) regular arrays. Kinematics MUST be computed in float64: the mass
+    # comes from E^2 - |p|^2, a difference of two large, nearly equal numbers
+    # for light, high-momentum pairs, and float32 loses most of the digits.
+    mu = {k: ak.to_numpy(os_[f"Muon_{k}"]).reshape(-1, 2).astype(np.float64)
           for k in ("pt", "eta", "phi", "mass")}
     mass = invariant_mass_ptetaphi(
         mu["pt"][:, 0], mu["eta"][:, 0], mu["phi"][:, 0], mu["mass"][:, 0],
         mu["pt"][:, 1], mu["eta"][:, 1], mu["phi"][:, 1], mu["mass"][:, 1],
     ).astype(np.float32)
 
+    f32 = lambda a: a.astype(np.float32)  # store compactly once the maths is done
     table = pa.table({
-        "pt1": mu["pt"][:, 0], "eta1": mu["eta"][:, 0], "phi1": mu["phi"][:, 0],
-        "pt2": mu["pt"][:, 1], "eta2": mu["eta"][:, 1], "phi2": mu["phi"][:, 1],
+        "pt1": f32(mu["pt"][:, 0]), "eta1": f32(mu["eta"][:, 0]), "phi1": f32(mu["phi"][:, 0]),
+        "pt2": f32(mu["pt"][:, 1]), "eta2": f32(mu["eta"][:, 1]), "phi2": f32(mu["phi"][:, 1]),
         "mass": mass,
     })
     pq.write_table(table, OUT / f"part-{idx:04d}.parquet", compression="zstd")

@@ -18,10 +18,10 @@ def invariant_mass(E1, px1, py1, pz1, E2, px2, py2, pz2):
 def invariant_mass_ptetaphi(pt1, eta1, phi1, m1, pt2, eta2, phi2, m2):
     """Invariant mass from detector coordinates (pt, eta, phi, m).
 
-    Uses the collider form:
-    M^2 = m1^2 + m2^2 + 2 (E1 E2 - p1 . p2), with
-    E = sqrt(m^2 + (pt cosh eta)^2),  p . p' = pt pt' (cosh(eta - eta') ... )
-    expressed here via explicit Cartesian components for clarity.
+    Converts to Cartesian components (px = pt cos phi, py = pt sin phi,
+    pz = pt sinh eta, E = sqrt(m^2 + |p|^2)) and applies invariant_mass().
+    Pass float64 arrays: E^2 - |p|^2 cancels badly in float32 for light,
+    high-momentum pairs.
     """
     px1, py1, pz1 = pt1 * np.cos(phi1), pt1 * np.sin(phi1), pt1 * np.sinh(eta1)
     px2, py2, pz2 = pt2 * np.cos(phi2), pt2 * np.sin(phi2), pt2 * np.sinh(eta2)

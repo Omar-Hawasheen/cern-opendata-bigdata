@@ -6,7 +6,7 @@ It has three parts, from simple physics to big data and machine learning:
 | Part | Dataset | What it does | Headline result |
 |---|---|---|---|
 | **1. Particle rediscovery** | CMS 2011 DoubleMu, 100k events | Computes the dimuon invariant mass from raw four-momenta and fits the peaks | Z boson at **90.77 ± 0.04 GeV**, J/ψ at **3.0931 GeV** |
-| **2. Big data pipeline** | CMS 2012 DoubleMuParked, **61.5M events / 2.2 GB** | Parallel out-of-core ETL (uproot + awkward → Parquet), then Dask **and Spark SQL** analytics | **61.5M events in 20 s** (3.1M events/s, 8 workers, <820 MB per worker) |
+| **2. Big data pipeline** | CMS 2012 DoubleMuParked, **61.5M events / 2.2 GB** | Parallel out-of-core ETL (uproot + awkward → Parquet), then Dask **and Spark SQL** analytics | **61.5M events in ~21 s** (2.9M events/s, 8 workers, <800 MB per worker) |
 | **3. Higgs ML** | ATLAS Higgs ML Challenge 2014, 818k events | XGBoost H→ττ signal vs background classifier, scored with the official Kaggle protocol | **AMS 3.69** on the private test set (2014 winner: 3.806) |
 
 ---
@@ -22,8 +22,10 @@ Computing it for every event and plotting a histogram makes the known particles 
 
 ![2011 spectrum](figures/dimuon_spectrum_2011.png)
 
-The mass I compute matches the value CMS stored in the file (median difference 8×10⁻⁵ GeV,
-which is rounding in the CSV). I then fit two of the peaks:
+The mass I compute matches the value CMS stored in the file: median difference 8×10⁻⁵ GeV,
+and 99.9% of events agree within 0.013 GeV. The ~200 larger differences are light, fast muon
+pairs, where E² − p² is a small difference of large numbers, so the 4-decimal rounding in the CSV
+gets amplified. I then fit two of the peaks:
 
 | Z boson: Voigt fit (Breit-Wigner ⊗ Gaussian resolution) | J/ψ meson: Gaussian fit |
 |---|---|
@@ -51,10 +53,10 @@ bound states of a bottom quark and its antiquark, only ~0.3–0.6 GeV apart:
 | Metric | Value |
 |---|---|
 | Input | 2.24 GB ROOT, 61,540,413 events, jagged muon arrays |
-| ETL wall time | **19.6 s**, about **3.1 million events / s** |
-| Peak memory per worker | 814 MB (bounded by the 1M-event chunk size, not the dataset size) |
-| Output | 24.1M dimuon candidates in 0.85 GB zstd Parquet (2.6× smaller) |
-| Dask analytics (histogram + window counts + aggregates) | **1.6 s** over 24M rows |
+| ETL wall time | **20.9 s**, about **2.9 million events / s** (input file already in the OS disk cache) |
+| Peak memory per worker | 770 MB (bounded by the 1M-event chunk size, not the dataset size) |
+| Output | 24.1M selected dimuon candidates in 0.85 GB of zstd Parquet |
+| Dask analytics (histogram + window counts + aggregates) | **1.3 s** over 24M rows |
 | Candidates in the J/ψ / Υ / Z windows | 2.26M / 0.64M / 4.85M |
 
 The broad bump at 20–40 GeV isn't a particle. It comes from the trigger: the "parked" dimuon
@@ -80,6 +82,9 @@ trigger only kept events whose muons passed momentum thresholds, which sculpts t
 
 * **Out-of-core:** no process ever holds the full dataset. Memory use is bounded by the chunk size.
 * **Columnar and vectorised:** no Python loop over events. Selection and kinematics are array operations.
+* **Numerically careful:** the mass is computed in float64 and stored in float32. An earlier float32-only
+  version mis-computed ~14k light-pair masses through cancellation in E² − p². The fix was verified by the
+  smallest mass coming out at 0.2113 GeV, exactly 2 × the muon mass, the physical threshold.
 * **Re-usable output:** later analyses read the small Parquet dataset instead of the raw ROOT file.
 
 ### Part 2b: the same analysis in Apache Spark SQL
@@ -103,9 +108,9 @@ FROM z GROUP BY region ORDER BY stddev_mass;
 
 | Region (both muons) | Z candidates | Spread of Z peak |
 |---|---|---|
-| barrel-barrel | 1,419,072 | **2.07 GeV** |
+| barrel-barrel | 1,419,071 | **2.07 GeV** |
 | barrel-endcap | 1,960,932 | 2.18 GeV |
-| endcap-endcap | 751,339 | 2.32 GeV |
+| endcap-endcap | 751,335 | 2.32 GeV |
 
 The SQL confirms a real detector effect: muons in the central barrel are measured more precisely,
 so the Z peak is about 11% narrower than for muons in the forward endcaps.
@@ -118,14 +123,17 @@ so the Z peak is about 11% narrower than for muons in the forward endcaps.
 with muon momenta far above the 4 TeV beam energy and η = 11.5, which is outside the detector.
 A data-quality query counts them across all 24M candidates:
 
-| Check | Records |
-|---|---|
-| muon p<sub>T</sub> > 4 TeV (beam energy) | 977 |
-| muon \|η\| > 2.4 (outside muon-system acceptance) | 169,839 |
+| Check | Records | Verdict |
+|---|---|---|
+| muon p<sub>T</sub> > 4 TeV (above the beam energy) | 977 | impossible |
+| muon \|η\| > 3 (far outside tracker and muon chambers) | 2,663 | impossible |
+| **clearly unphysical, total** | **3,632** | broken reconstructions |
+| pair mass > 8 TeV (above the collision energy) | 14 | impossible |
+| muon \|η\| > 2.4 (beyond the muon chambers) | 169,839 | suspicious: the tracker reaches \|η\| = 2.5, so many are edge cases, not errors |
 
-These are mis-reconstructed tracks. This reduced dataset doesn't include the muon-ID and
-track-quality variables a full CMS analysis would cut on, so the kinematic cuts are a first
-line of defense. All seven queries run in about 40 s on a laptop
+This reduced dataset doesn't include the muon-ID and track-quality variables a full CMS analysis
+would cut on, so these kinematic checks are a first line of defense. Even after them, a few
+multi-TeV "dimuons" remain, almost certainly very straight, badly measured tracks. All seven queries run in about 40 s on a laptop
 ([`results/spark_sql.json`](results/spark_sql.json)).
 
 ## Part 3: Finding the Higgs boson with machine learning
@@ -141,9 +149,14 @@ score once on the 450k-event private test set.
 | Model | Private AMS | AUC |
 |---|---|---|
 | Logistic regression (baseline) | 2.16 | 0.895 |
-| 2014 official TMVA BDT benchmark | 3.20 | – |
+| Official TMVA benchmark | 3.20 | – |
+| Official MultiBoost benchmark | 3.40 | – |
 | **XGBoost + angular features (this project)** | **3.69** | **0.936** |
-| 2014 winner (ensemble of 70 neural networks) | 3.806 | – |
+| Rank 45 of 1,785 teams (XGBoost) | 3.72 | – |
+| 2014 winner, G. Melis (ensemble of deep neural networks) | 3.806 | – |
+
+Leaderboard numbers are from the challenge paper: Adam-Bourdarios et al.,
+[*The Higgs boson machine learning challenge*, PMLR 42 (2015)](https://proceedings.mlr.press/v42/cowa14.html).
 
 Feature engineering: the raw φ angles are replaced by rotation-invariant Δφ between the τ, lepton,
 jet and missing energy, because physics is symmetric under rotation around the beam axis.

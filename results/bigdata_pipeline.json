@@ -2,11 +2,11 @@
   "n_events": 61540413,
   "workers": 8,
   "chunk_size_events": 1000000,
-  "etl_wall_seconds": 19.6,
-  "etl_throughput_events_per_sec": 3145581,
-  "max_worker_rss_mb": 814,
+  "etl_wall_seconds": 20.9,
+  "etl_throughput_events_per_sec": 2942240,
+  "max_worker_rss_mb": 770,
   "raw_root_gb": 2.24,
-  "processed_parquet_gb": 0.847,
+  "processed_parquet_gb": 0.851,
   "cutflow": {
     "All events": 61540413,
     "Exactly 2 muons": 31104343,
@@ -14,13 +14,13 @@
   },
   "dimuon_candidates": 24067843,
   "candidates_in_mass_windows": {
-    "J/psi": 2259066,
-    "Upsilon(1S-3S)": 641731,
+    "J/psi": 2259072,
+    "Upsilon(1S-3S)": 641727,
     "Z": 4853286
   },
   "mean_muon_pt_in_Z_window_GeV": {
     "pt1": 39.57,
-    "pt2": 39.75
+    "pt2": 39.77
   },
-  "dask_analytics_seconds": 1.58
+  "dask_analytics_seconds": 1.32
 }

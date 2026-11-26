@@ -125,9 +125,13 @@ def main():
         }
         if name == "private":
             priv = (p_x, p_l, ys, ws)
+    # Source: Adam-Bourdarios et al., "The Higgs boson machine learning
+    # challenge", PMLR 42 (2015), private leaderboard table. 1785 teams took part.
     results["reference_2014_leaderboard_private_AMS"] = {
-        "1st place (G. Melis)": 3.806, "simple TMVA BDT benchmark": 3.20,
-        "'simple window' benchmark": 2.06}
+        "rank 1, G. Melis (DNN ensemble)": 3.80581,
+        "rank 45, Crowwork (XGBoost)": 3.71885,
+        "MultiBoost benchmark": 3.40488,
+        "TMVA benchmark": 3.19956}
 
     # --- figures -------------------------------------------------------------
     p_x, p_l, ys, ws = priv
